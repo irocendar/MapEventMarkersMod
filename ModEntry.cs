@@ -46,13 +46,14 @@ namespace MapEventMarkersMod
             if (!Context.IsWorldReady)
                 return;
 
-            if (Game1.player.currentLocation.InIslandContext())
-                return;
-
             if (!Config.Enabled)
                 return;
+
+            var pendingEvents = PendingEvents();
+
+            if (pendingEvents.Count == 0) return;
             
-            foreach (GameLocation gameLocation in this.PendingEvents())
+            foreach (GameLocation gameLocation in pendingEvents)
             {
                 DrawMarker(gameLocation);
             }
@@ -64,10 +65,9 @@ namespace MapEventMarkersMod
             foreach (GameLocation loc in Game1.locations)
             {
                 Dictionary<string, string> locEvents;
-                string eventAssetName;
                 try
                 {
-                    loc.TryGetLocationEvents(out eventAssetName, out locEvents);
+                    loc.TryGetLocationEvents(out _, out locEvents);
                 }
                 catch (Exception)
                 {
@@ -76,7 +76,7 @@ namespace MapEventMarkersMod
                 foreach (string @event in locEvents.Keys)
                 {
                     List<string> array = Event.SplitPreconditions(@event).ToList();
-                    if (!int.TryParse(array[0], out _))
+                    if (!int.TryParse(array[0], out _) && !@event.Contains('/'))
                         continue;
                     List<string> filtered = new List<string>();
                     List<char> ignored = new List<char>() { 'L', 'B', 'a', 'r'  };
@@ -93,7 +93,7 @@ namespace MapEventMarkersMod
                             if (!loc.characters.Contains(character))
                                 skip = true;
                         }
-                    if (!skip && loc.checkEventPrecondition(String.Join('/', array)) != "-1")
+                    if (!skip && loc.checkEventPrecondition(String.Join('/', filtered)) != "-1")
                     {
                         eventLocations.Add(loc);
                         break;
@@ -105,30 +105,33 @@ namespace MapEventMarkersMod
 
         private void DrawMarker(GameLocation location)
         {
-            Point playerTile = Game1.player.TilePoint;
-            if (playerTile.X < 0 || playerTile.Y < 0)
-            {
-                playerTile = new Point(Math.Max(0, playerTile.X), Math.Max(0, playerTile.Y));
-            }
-            MapAreaPositionWithContext? mapPosition = WorldMapManager.GetPositionData(Game1.player.currentLocation, playerTile) ?? WorldMapManager.GetPositionData(Game1.getFarm(), Point.Zero);
-            MapRegion? mapRegion = mapPosition?.Data.Region ?? WorldMapManager.GetMapRegions().First();
-            Rectangle mapBounds = mapRegion.GetMapPixelBounds();
+            int mapTabIndex = Constants.TargetPlatform == GamePlatform.Android ? 4 : GameMenu.mapTab;
+            if (Game1.activeClickableMenu is not GameMenu gameMenu || gameMenu.currentTab != mapTabIndex)
+                return;
+            Rectangle mapBounds = ((MapPage)gameMenu.pages[GameMenu.mapTab]).mapBounds;
 
             Vector2 mapVec = Utility.getTopLeftPositionForCenteringOnScreen(mapBounds.Width * 4, mapBounds.Height * 4);
 
             SpriteBatch spriteBatch = Game1.spriteBatch;
-
-            int mapTabIndex = Constants.TargetPlatform == GamePlatform.Android ? 4 : GameMenu.mapTab;
-
-            if (Game1.activeClickableMenu is not GameMenu gameMenu || gameMenu.currentTab != mapTabIndex)
-                return;
+            
+            MapPage Map = (MapPage)((GameMenu)Game1.activeClickableMenu).pages[mapTabIndex];
+            MapAreaPositionWithContext? markerPosition = WorldMapManager.GetPositionData(location, new Point(0, 0)) ?? WorldMapManager.GetPositionData(Game1.getFarm(), Point.Zero);
             
             EventMarker eventMarker = new EventMarker(location);
 
             var childMenu = gameMenu.GetChildMenu();
             
-            if (childMenu is not null)
+            if (childMenu is not null && childMenu.GetType().FullName == "RidgesideVillage.RSVWorldMap" 
+                                      && markerPosition.Value.Data.Region.Id == "Rafseazz.RSVCP_RidgesideVillage")
+            {
+                mapVec = Utility.getTopLeftPositionForCenteringOnScreen(childMenu.width, childMenu.height);
+                eventMarker.MapPosition *= 1.25f;
+            }
+            
+            else if (childMenu is not null)
                 return;
+            
+            else if (markerPosition.Value.Data.Region.Id != Map.mapRegion.Id) return;
 
             Vector2 position = eventMarker.MapPosition + mapVec;
 
@@ -144,6 +147,12 @@ namespace MapEventMarkersMod
                 2.5f, 
                 SpriteEffects.None, 
                 0.5f);
+            
+            Vector2 mouseVec = Game1.getMousePosition(true).ToVector2();
+            int radius = 25;
+            
+            if ((mouseVec - position).Length() < radius) 
+                IClickableMenu.drawHoverText(spriteBatch, $"Event in {location.DisplayName}", Game1.smallFont, yOffset: -70);
             
             if (childMenu is not null)
                 childMenu.drawMouse(spriteBatch);

@@ -1,7 +1,7 @@
 {
   "Name": "Map Event Markers",
   "Author": "irocendar",
-  "Version": "0.1.0",
+  "Version": "0.2.0",
   "Description": "Marks pending player events on the map with question marks.",
   "UniqueID": "irocendar.MapEventMarkers",
   "EntryDll": "MapEventMarkersMod.dll",
