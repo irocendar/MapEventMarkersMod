@@ -22,6 +22,7 @@ namespace MapEventMarkersMod
          *********/
         /// <summary>The mod configuration from the player.</summary>
         private ModConfig Config;
+        private List<GameLocation>? PendingEvents;
         
         /*********
          ** Public methods
@@ -34,12 +35,24 @@ namespace MapEventMarkersMod
             
             helper.Events.GameLoop.GameLaunched += OnGameLaunched;
             helper.Events.Display.RenderedActiveMenu += OnRenderedActiveMenu;
+            helper.Events.Display.MenuChanged += OnMenuChanged;
             
         }
 
         /*********
          ** Private methods
          *********/
+
+        private void OnMenuChanged(object sender, MenuChangedEventArgs e)
+        {
+            int mapTabIndex = Constants.TargetPlatform == GamePlatform.Android ? 4 : GameMenu.mapTab;
+            if (Game1.activeClickableMenu is not GameMenu gameMenu || gameMenu.currentTab != mapTabIndex)
+            {
+                PendingEvents = null;
+                return;
+            }
+            PendingEvents ??= GetPendingEvents();
+        }
         
         private void OnRenderedActiveMenu(object sender, RenderedActiveMenuEventArgs e)
         {
@@ -48,8 +61,12 @@ namespace MapEventMarkersMod
 
             if (!Config.Enabled)
                 return;
+            
+            int mapTabIndex = Constants.TargetPlatform == GamePlatform.Android ? 4 : GameMenu.mapTab;
+            if (Game1.activeClickableMenu is not GameMenu gameMenu || gameMenu.currentTab != mapTabIndex)
+                return;
 
-            var pendingEvents = PendingEvents();
+            var pendingEvents = PendingEvents ?? GetPendingEvents();
 
             if (pendingEvents.Count == 0) return;
             
@@ -59,7 +76,7 @@ namespace MapEventMarkersMod
             }
         }
         
-        private List<GameLocation> PendingEvents()
+        private List<GameLocation> GetPendingEvents()
         {
             List<GameLocation> eventLocations = new List<GameLocation>();
             foreach (GameLocation loc in Game1.locations)
