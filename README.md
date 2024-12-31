@@ -1,4 +1,4 @@
-# Pet Renamer
+# Map Event Markers
 Marks pending player events on the map with question marks.
 
 ## Install
