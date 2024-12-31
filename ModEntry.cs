@@ -66,11 +66,11 @@ namespace MapEventMarkersMod
             if (Game1.activeClickableMenu is not GameMenu gameMenu || gameMenu.currentTab != mapTabIndex)
                 return;
 
-            var pendingEvents = PendingEvents ?? GetPendingEvents();
+            PendingEvents ??= GetPendingEvents();
 
-            if (pendingEvents.Count == 0) return;
+            if (PendingEvents.Count == 0) return;
             
-            foreach (GameLocation gameLocation in pendingEvents)
+            foreach (GameLocation gameLocation in PendingEvents)
             {
                 DrawMarker(gameLocation);
             }
@@ -110,7 +110,17 @@ namespace MapEventMarkersMod
                             if (!loc.characters.Contains(character))
                                 skip = true;
                         }
-                    if (!skip && loc.checkEventPrecondition(String.Join('/', filtered)) != "-1")
+
+                    string checkEventPrecondition;
+                    try
+                    {
+                        checkEventPrecondition = loc.checkEventPrecondition(String.Join('/', filtered) + '/');
+                    }
+                    catch (IndexOutOfRangeException)
+                    {
+                        continue;
+                    }
+                    if (!skip && checkEventPrecondition != "-1")
                     {
                         eventLocations.Add(loc);
                         break;
