@@ -27,16 +27,13 @@ namespace MapEventMarkersMod
             }
         }
 
-        public string GetHoverText(GameMenu gameMenu, Vector2 topLeft)
+        public string GetHoverText(MapPage mapPage, Vector2 topLeft)
         {
-            int mapTabIndex = Constants.TargetPlatform == GamePlatform.Android ? 4 : GameMenu.mapTab;
             string hoverText = "";
-            
-                MapPage mapPage = (MapPage)gameMenu.pages[mapTabIndex];
 
-                foreach (ClickableComponent point in mapPage.points.Values)
-                    if (point.containsPoint(Game1.getMouseX(true), Game1.getMouseY(true)))
-                        hoverText = point.label;
+            foreach (ClickableComponent point in mapPage.points.Values)
+                if (point.containsPoint(Game1.getMouseX(true), Game1.getMouseY(true)))
+                    hoverText = point.label;
 
             return hoverText;
         }
