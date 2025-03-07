@@ -49,7 +49,7 @@ namespace MapEventMarkersMod
 
         private MapPage? GetMapPage()
         {
-            if (BetterGameMenu?.ActiveMenu?.CurrentPage is MapPage page)
+            if (BetterGameMenu?.ActivePage is MapPage page)
                 return page;
 
             if (Game1.activeClickableMenu is GameMenu gm && gm.GetCurrentPage() is MapPage mp)
