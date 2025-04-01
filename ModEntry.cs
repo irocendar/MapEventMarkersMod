@@ -1,4 +1,6 @@
-﻿using LightRadiusMod;
+﻿using Leclair.Stardew.BetterGameMenu;
+
+using LightRadiusMod;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
@@ -23,7 +25,9 @@ namespace MapEventMarkersMod
         /// <summary>The mod configuration from the player.</summary>
         private ModConfig Config;
         private List<GameLocation>? PendingEvents;
-        
+
+        private IBetterGameMenuApi? BetterGameMenu;
+
         /*********
          ** Public methods
          *********/
@@ -43,10 +47,20 @@ namespace MapEventMarkersMod
          ** Private methods
          *********/
 
+        private MapPage? GetMapPage()
+        {
+            if (BetterGameMenu?.ActivePage is MapPage page)
+                return page;
+
+            if (Game1.activeClickableMenu is GameMenu gm && gm.GetCurrentPage() is MapPage mp)
+                return mp;
+
+            return null;
+        }
+
         private void OnMenuChanged(object sender, MenuChangedEventArgs e)
         {
-            int mapTabIndex = Constants.TargetPlatform == GamePlatform.Android ? 4 : GameMenu.mapTab;
-            if (Game1.activeClickableMenu is not GameMenu gameMenu || gameMenu.currentTab != mapTabIndex)
+            if (GetMapPage() == null)
             {
                 PendingEvents = null;
                 return;
@@ -62,8 +76,7 @@ namespace MapEventMarkersMod
             if (!Config.Enabled)
                 return;
             
-            int mapTabIndex = Constants.TargetPlatform == GamePlatform.Android ? 4 : GameMenu.mapTab;
-            if (Game1.activeClickableMenu is not GameMenu gameMenu || gameMenu.currentTab != mapTabIndex)
+            if (GetMapPage() == null)
                 return;
 
             PendingEvents ??= GetPendingEvents();
@@ -132,21 +145,20 @@ namespace MapEventMarkersMod
 
         private void DrawMarker(GameLocation location)
         {
-            int mapTabIndex = Constants.TargetPlatform == GamePlatform.Android ? 4 : GameMenu.mapTab;
-            if (Game1.activeClickableMenu is not GameMenu gameMenu || gameMenu.currentTab != mapTabIndex)
+            if (GetMapPage() is not MapPage Map)
                 return;
-            Rectangle mapBounds = ((MapPage)gameMenu.pages[GameMenu.mapTab]).mapBounds;
+
+            Rectangle mapBounds = Map.mapBounds;
 
             Vector2 mapVec = Utility.getTopLeftPositionForCenteringOnScreen(mapBounds.Width * 4, mapBounds.Height * 4);
 
             SpriteBatch spriteBatch = Game1.spriteBatch;
-            
-            MapPage Map = (MapPage)((GameMenu)Game1.activeClickableMenu).pages[mapTabIndex];
+
             MapAreaPositionWithContext? markerPosition = WorldMapManager.GetPositionData(location, new Point(0, 0)) ?? WorldMapManager.GetPositionData(Game1.getFarm(), Point.Zero);
             
             EventMarker eventMarker = new EventMarker(location);
 
-            var childMenu = gameMenu.GetChildMenu();
+            var childMenu = Game1.activeClickableMenu.GetChildMenu();
             
             if (childMenu is not null && childMenu.GetType().FullName == "RidgesideVillage.RSVWorldMap" 
                                       && markerPosition.Value.Data.Region.Id == "Rafseazz.RSVCP_RidgesideVillage")
@@ -180,15 +192,23 @@ namespace MapEventMarkersMod
             
             if ((mouseVec - position).Length() < radius) 
                 IClickableMenu.drawHoverText(spriteBatch, $"Event in {location.DisplayName}", Game1.smallFont, yOffset: -70);
-            
+
             if (childMenu is not null)
                 childMenu.drawMouse(spriteBatch);
             else
-                gameMenu.drawMouse(spriteBatch);
+                Game1.activeClickableMenu.drawMouse(spriteBatch);
         }
         
         private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
         {
+            try
+            {
+                BetterGameMenu = this.Helper.ModRegistry.GetApi<IBetterGameMenuApi>("leclair.bettergamemenu");
+            } catch (Exception ex)
+            {
+                this.Monitor.Log($"Error getting Better Game Menu API: {ex}", LogLevel.Warn);
+            }
+
             var configMenu = this.Helper.ModRegistry.GetApi<IGenericModConfigMenuApi>("spacechase0.GenericModConfigMenu");
             if (configMenu is null)
                 return;
